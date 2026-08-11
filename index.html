@@ -545,7 +545,6 @@ startBtn.addEventListener("click", () => {
     }
   });
 
-  // Core Secured Response Evaluation Engine
   function evaluateAnswer() {
     const card = flashcards[currentCardIndex];
     const typedText = inputField.value.trim();
@@ -587,13 +586,19 @@ startBtn.addEventListener("click", () => {
             sessionMetrics[card.front].correct++;
             sessionMetrics[card.front].correctTimes.push(result.timeSpentSeconds);
           }
+          // SYNCED FIX: Matched your Edge script's specific output strings exactly
           let colors = { "Easy!": "#2ecc71", "Good": "#3498db", "Hard": "#f1c40f", "Slow": "#e67e22" };
           body.style.backgroundColor = colors[result.ratingLabel] || "#3498db";
           metricsPanel.textContent = `${result.ratingLabel} | Adjusted Time: ${result.timeSpentSeconds.toFixed(2)}s`;
         }
 
+        // SYNCED FIX: Map directly to nextSelectedIndex from your edge return data
         transitionTimer = setTimeout(() => {
-          currentCardIndex = (result && typeof result.nextSelectedIndex === 'number') ? result.nextSelectedIndex : (currentCardIndex + 1) % flashcards.length;
+          if (result && typeof result.nextSelectedIndex === 'number') {
+            currentCardIndex = result.nextSelectedIndex;
+          } else {
+            currentCardIndex = (currentCardIndex + 1) % flashcards.length;
+          }
           loadNextCard();
         }, result.isWrong ? 2500 : 700);
       })
