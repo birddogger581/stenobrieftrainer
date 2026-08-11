@@ -503,6 +503,7 @@ startBtn.addEventListener("click", () => {
       });
   });
 
+  // Handle Reset Back to Configuration
   resetBtn.addEventListener("click", () => {
     clearInterval(countdownInterval);
     clearTimeout(typingTimer);
@@ -535,6 +536,7 @@ startBtn.addEventListener("click", () => {
     entryFinishedTime = cardShownTime;
   }
 
+  // Key Event Processing Listener
   inputField.addEventListener("input", () => {
     entryFinishedTime = performance.now();
     clearTimeout(typingTimer);
@@ -543,14 +545,14 @@ startBtn.addEventListener("click", () => {
     }
   });
 
- function evaluateAnswer() {
+  // Core Secured Response Evaluation Engine
+  function evaluateAnswer() {
     const card = flashcards[currentCardIndex];
     const typedText = inputField.value.trim();
     
     inputField.style.display = "none";
     feedbackPanel.style.display = "block";
 
-    // Show initial visual text differences instantly in the browser window
     const localDiff = computeVisualDiff(typedText, card.back.trim());
     comparisonOutput.innerHTML = localDiff.html;
 
@@ -569,7 +571,7 @@ startBtn.addEventListener("click", () => {
         if (response.error) throw response.error;
         const result = response.data;
 
-        // Save the new layout weight prioritization state returned from Deno back to browser memory
+        // Save the updated spacing weight priority map back to local state
         if (result && result.updatedWeights) {
           cardWeights = result.updatedWeights;
         }
@@ -585,20 +587,18 @@ startBtn.addEventListener("click", () => {
             sessionMetrics[card.front].correct++;
             sessionMetrics[card.front].correctTimes.push(result.timeSpentSeconds);
           }
-          // Match your custom Deno Edge Function speed milestones and ratings perfectly
           let colors = { "Easy!": "#2ecc71", "Good": "#3498db", "Hard": "#f1c40f", "Slow": "#e67e22" };
           body.style.backgroundColor = colors[result.ratingLabel] || "#3498db";
           metricsPanel.textContent = `${result.ratingLabel} | Adjusted Time: ${result.timeSpentSeconds.toFixed(2)}s`;
         }
 
-        // Move directly to the index chosen securely by the cloud random selection engine
         transitionTimer = setTimeout(() => {
           currentCardIndex = (result && typeof result.nextSelectedIndex === 'number') ? result.nextSelectedIndex : (currentCardIndex + 1) % flashcards.length;
           loadNextCard();
         }, result.isWrong ? 2500 : 700);
       })
       .catch(err => {
-        console.warn("Cloud tracking connection failed. Executing local backup sequence:", err);
+        console.warn("Cloud tracking connection failed. Running local fallback sequence:", err);
         const timeSpent = (entryFinishedTime - cardShownTime) / 1000;
         
         if (localDiff.isWrong) {
@@ -623,7 +623,7 @@ startBtn.addEventListener("click", () => {
           loadNextCard();
         }, localDiff.isWrong ? 2000 : 800);
       });
-    } /
+    }
   }
 
   document.getElementById("results-close-btn").addEventListener("click", () => {
@@ -631,10 +631,6 @@ startBtn.addEventListener("click", () => {
     resetBtn.click();
   });
 
-    document.getElementById("results-close-btn").addEventListener("click", () => {
-    document.getElementById("results-modal").style.display = "none";
-    resetBtn.click();
-  });
 })();
 </script>
 </body>
