@@ -546,9 +546,11 @@ startBtn.addEventListener("click", () => {
   function evaluateAnswer() {
     const card = flashcards[currentCardIndex];
     const typedText = inputField.value.trim();
+    
     inputField.style.display = "none";
     feedbackPanel.style.display = "block";
 
+    // Show initial visual text differences instantly in the browser window
     const localDiff = computeVisualDiff(typedText, card.back.trim());
     comparisonOutput.innerHTML = localDiff.html;
 
@@ -557,7 +559,7 @@ startBtn.addEventListener("click", () => {
         body: {
           typedText: typedText,
           targetText: card.back,
-          cardWeights: cardWeights,
+          cardWeights: Array.isArray(cardWeights) ? cardWeights : [], // Absolute array validation guard
           cardShownTime: cardShownTime,
           entryFinishedTime: entryFinishedTime,
           currentIndex: currentCardIndex
@@ -566,69 +568,65 @@ startBtn.addEventListener("click", () => {
       .then(response => {
         if (response.error) throw response.error;
         const result = response.data;
-        cardWeights = result.updatedWeights;
+
+        // Save the new layout weight prioritization state returned from Deno back to browser memory
+        if (result && result.updatedWeights) {
+          cardWeights = result.updatedWeights;
+        }
         
         if (result.isWrong) {
           body.style.backgroundColor = "#e74c3c";
           playSound("fail");
           metricsPanel.textContent = "Incorrect.";
+          if (sessionMetrics[card.front]) sessionMetrics[card.front].wrong++;
         } else {
           playSound("success");
           if (sessionMetrics[card.front]) {
             sessionMetrics[card.front].correct++;
             sessionMetrics[card.front].correctTimes.push(result.timeSpentSeconds);
           }
-          let colors = { "Easy!": "#2ecc71", "Good": "#3498db", "Hard": "#f1c40f", "Slow": "#e74c3c" };
+          // Match your custom Deno Edge Function speed milestones and ratings perfectly
+          let colors = { "Easy!": "#2ecc71", "Good": "#3498db", "Hard": "#f1c40f", "Slow": "#e67e22" };
           body.style.backgroundColor = colors[result.ratingLabel] || "#3498db";
-          metricsPanel.textContent = `${result.ratingLabel} | Clear Time: ${result.timeSpentSeconds.toFixed(2)}s`;
+          metricsPanel.textContent = `${result.ratingLabel} | Adjusted Time: ${result.timeSpentSeconds.toFixed(2)}s`;
         }
+
+        // Move directly to the index chosen securely by the cloud random selection engine
         transitionTimer = setTimeout(() => {
-          currentCardIndex = result.nextSelectedIndex;
+          currentCardIndex = typeof result.nextSelectedIndex === 'number' ? result.nextSelectedIndex : (currentCardIndex + 1) % flashcards.length;
           loadNextCard();
-        }, result.isWrong ? 3500 : 600);
+        }, result.isWrong ? 2500 : 700);
       })
       .catch(err => {
-        console.warn("Using baseline safe local evaluation processing mode:", err);
+        console.warn("Cloud tracking connection failed. Executing local backup sequence:", err);
         const timeSpent = (entryFinishedTime - cardShownTime) / 1000;
+        
         if (localDiff.isWrong) {
           body.style.backgroundColor = "#e74c3c";
           playSound("fail");
           metricsPanel.textContent = "Incorrect.";
-          sessionMetrics[card.front].wrong++;
+          if (sessionMetrics[card.front]) sessionMetrics[card.front].wrong++;
+          if (Array.isArray(cardWeights)) cardWeights[currentCardIndex] = 5;
         } else {
           body.style.backgroundColor = "#2ecc71";
           playSound("success");
-          sessionMetrics[card.front].correct++;
-          sessionMetrics[card.front].correctTimes.push(timeSpent);
+          if (sessionMetrics[card.front]) {
+            sessionMetrics[card.front].correct++;
+            sessionMetrics[card.front].correctTimes.push(timeSpent);
+          }
           metricsPanel.textContent = `Correct! | Clear Time: ${timeSpent.toFixed(2)}s`;
+          if (Array.isArray(cardWeights)) cardWeights[currentCardIndex] = 1;
         }
+        
         transitionTimer = setTimeout(() => {
           currentCardIndex = (currentCardIndex + 1) % flashcards.length;
           loadNextCard();
         }, localDiff.isWrong ? 2000 : 800);
       });
-    } else {
-      const timeSpent = (entryFinishedTime - cardShownTime) / 1000;
-      if (localDiff.isWrong) {
-        body.style.backgroundColor = "#e74c3c";
-        playSound("fail");
-        metricsPanel.textContent = "Incorrect.";
-        sessionMetrics[card.front].wrong++;
-      } else {
-        body.style.backgroundColor = "#2ecc71";
-        playSound("success");
-        sessionMetrics[card.front].correct++;
-        sessionMetrics[card.front].correctTimes.push(timeSpent);
-        metricsPanel.textContent = `Correct! | Clear Time: ${timeSpent.toFixed(2)}s`;
-      }
-      transitionTimer = setTimeout(() => {
-        currentCardIndex = (currentCardIndex + 1) % flashcards.length;
-        loadNextCard();
-      }, localDiff.isWrong ? 2000 : 800);
     }
   }
 
-  document.getElementById("results-close-btn").addEventListener("click", () => {
+    document.getElementById("results-close-btn").addEventListener("click", () => {
     document.getElementById("results-modal").style.display = "none";
     resetBtn.click();
   });
