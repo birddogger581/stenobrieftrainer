@@ -346,6 +346,7 @@ velocity engine"></textarea>
   let secondsRemaining = 0;
   let sessionMetrics = {}; 
   let cardWeights = [];
+  let totalAnswersInSession = 0;
   const typingDelay = 250;
   
   // Element Selector Nodes
@@ -550,7 +551,7 @@ velocity engine"></textarea>
   });
 
   // Core Secured Response Evaluation Engine
-  function evaluateAnswer() {
+ function evaluateAnswer() {
     const card = flashcards[currentCardIndex];
     const typedText = inputField.value.trim();
     
@@ -560,6 +561,9 @@ velocity engine"></textarea>
     const localDiff = computeVisualDiff(typedText, card.back.trim());
     comparisonOutput.innerHTML = localDiff.html;
 
+    // Increment your session counter parameter instantly on every stroke submit
+    totalAnswersInSession++;
+
     if (supabaseClient && supabaseClient.functions) {
       supabaseClient.functions.invoke('evaluate-steno-stroke', {
         body: {
@@ -568,7 +572,8 @@ velocity engine"></textarea>
           cardWeights: Array.isArray(cardWeights) ? cardWeights : [], 
           cardShownTime: cardShownTime,
           entryFinishedTime: entryFinishedTime,
-          currentIndex: currentCardIndex
+          currentIndex: currentCardIndex,
+          totalAnswersInSession: totalAnswersInSession // Send counter safely to cloud
         }
       })
       .then(({ data, error }) => {
@@ -605,7 +610,7 @@ velocity engine"></textarea>
         }, data.isWrong ? 2500 : 700);
       })
       .catch(err => {
-        console.warn("Cloud connection error. Running mirroring local fallback loop:", err);
+        console.warn("Cloud connection error. Running local mirroring sequence:", err);
         executeLocalGradingFallback(localDiff);
       });
     } else {
@@ -613,12 +618,11 @@ velocity engine"></textarea>
     }
   }
 
-  // FIXED REPLICA ENGINE: Replicates your Edge Function algorithms natively in browser window
+  // Frontend Fallback Mirror Updates
   function executeLocalGradingFallback(localDiff) {
     const card = flashcards[currentCardIndex];
     const targetClean = card.back.trim();
     
-    // Mirror your Edge Function's exact Multi-Word speed allowance calculation
     let timeSpentSeconds = (entryFinishedTime - cardShownTime) / 1000;
     const wordCount = targetClean.split(/\s+/).length;
     const speedBonusAllowance = Math.max(0, wordCount - 1) * 0.25;
@@ -637,7 +641,6 @@ velocity engine"></textarea>
         sessionMetrics[card.front].correctTimes.push(timeSpentSeconds);
       }
 
-      // Mirror your Edge Function's exact speed milestone scaling thresholds
       let ratingLabel = "Good";
       if (timeSpentSeconds <= 1) { ratingLabel = "Easy!"; cardWeights[currentCardIndex] = 1; }
       else if (timeSpentSeconds <= 2) { ratingLabel = "Good"; cardWeights[currentCardIndex] = 2; }
@@ -655,11 +658,16 @@ velocity engine"></textarea>
     }, localDiff.isWrong ? 2000 : 800);
   }
 
-  // Mirror your Edge Function's Exact Anti-Repeat Spaced Repetition Picker
   function getLocalWeightedNextIndex() {
     if (cardWeights.length <= 1) return 0;
+    
+    // Check if local system is still in pass 1
+    if (totalAnswersInSession < cardWeights.length) {
+      return (currentCardIndex + 1) % cardWeights.length;
+    }
+
     let selectionWeights = [...cardWeights];
-    selectionWeights[currentCardIndex] = 0; // Prevent repeating current card straight away
+    selectionWeights[currentCardIndex] = 0; 
 
     const totalWeight = selectionWeights.reduce((sum, w) => sum + w, 0);
     let randomRoll = Math.random() * totalWeight;
@@ -670,7 +678,6 @@ velocity engine"></textarea>
     }
     return (currentCardIndex + 1) % flashcards.length;
   }
-
   document.getElementById("results-close-btn").addEventListener("click", () => {
     document.getElementById("results-modal").style.display = "none";
     resetBtn.click();
