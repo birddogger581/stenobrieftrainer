@@ -543,7 +543,7 @@ startBtn.addEventListener("click", () => {
     }
   });
 
-  function evaluateAnswer() {
+ function evaluateAnswer() {
     const card = flashcards[currentCardIndex];
     const typedText = inputField.value.trim();
     
@@ -559,7 +559,7 @@ startBtn.addEventListener("click", () => {
         body: {
           typedText: typedText,
           targetText: card.back,
-          cardWeights: Array.isArray(cardWeights) ? cardWeights : [], // Absolute array validation guard
+          cardWeights: Array.isArray(cardWeights) ? cardWeights : [], 
           cardShownTime: cardShownTime,
           entryFinishedTime: entryFinishedTime,
           currentIndex: currentCardIndex
@@ -593,7 +593,7 @@ startBtn.addEventListener("click", () => {
 
         // Move directly to the index chosen securely by the cloud random selection engine
         transitionTimer = setTimeout(() => {
-          currentCardIndex = typeof result.nextSelectedIndex === 'number' ? result.nextSelectedIndex : (currentCardIndex + 1) % flashcards.length;
+          currentCardIndex = (result && typeof result.nextSelectedIndex === 'number') ? result.nextSelectedIndex : (currentCardIndex + 1) % flashcards.length;
           loadNextCard();
         }, result.isWrong ? 2500 : 700);
       })
@@ -623,8 +623,13 @@ startBtn.addEventListener("click", () => {
           loadNextCard();
         }, localDiff.isWrong ? 2000 : 800);
       });
-    }
+    } /
   }
+
+  document.getElementById("results-close-btn").addEventListener("click", () => {
+    document.getElementById("results-modal").style.display = "none";
+    resetBtn.click();
+  });
 
     document.getElementById("results-close-btn").addEventListener("click", () => {
     document.getElementById("results-modal").style.display = "none";
