@@ -571,12 +571,10 @@ velocity engine"></textarea>
           currentIndex: currentCardIndex
         }
       })
-      // RESTORED FIX: Destructured the direct payload properties from the Supabase Response Object wrapper
       .then(({ data, error }) => {
         if (error) throw error;
         if (!data) throw new Error("Empty edge response payload execution error.");
 
-        // Save the updated spacing weight priority map back to local state
         if (data.updatedWeights) {
           cardWeights = data.updatedWeights;
         }
@@ -592,7 +590,6 @@ velocity engine"></textarea>
             sessionMetrics[card.front].correct++;
             sessionMetrics[card.front].correctTimes.push(data.timeSpentSeconds);
           }
-          // RESTORED FIX: Dynamically match all four of your custom Deno server-side metric flags 
           let colors = { "Easy!": "#2ecc71", "Good": "#3498db", "Hard": "#f1c40f", "Slow": "#e67e22" };
           body.style.backgroundColor = colors[data.ratingLabel] || "#3498db";
           metricsPanel.textContent = `${data.ratingLabel} | Secure Adjusted Time: ${data.timeSpentSeconds.toFixed(2)}s`;
@@ -602,13 +599,13 @@ velocity engine"></textarea>
           if (data && typeof data.nextSelectedIndex === 'number') {
             currentCardIndex = data.nextSelectedIndex;
           } else {
-            currentCardIndex = (currentCardIndex + 1) % flashcards.length;
+            currentCardIndex = getLocalWeightedNextIndex();
           }
           loadNextCard();
         }, data.isWrong ? 2500 : 700);
       })
       .catch(err => {
-        console.warn("Cloud connection error. Bypassing tracking script to run local fallback loop:", err);
+        console.warn("Cloud connection error. Running mirroring local fallback loop:", err);
         executeLocalGradingFallback(localDiff);
       });
     } else {
@@ -616,30 +613,62 @@ velocity engine"></textarea>
     }
   }
 
+  // FIXED REPLICA ENGINE: Replicates your Edge Function algorithms natively in browser window
   function executeLocalGradingFallback(localDiff) {
     const card = flashcards[currentCardIndex];
-    console.warn("Running structural fallback execution layer.");
-    const timeSpent = (entryFinishedTime - cardShownTime) / 1000;
+    const targetClean = card.back.trim();
     
+    // Mirror your Edge Function's exact Multi-Word speed allowance calculation
+    let timeSpentSeconds = (entryFinishedTime - cardShownTime) / 1000;
+    const wordCount = targetClean.split(/\s+/).length;
+    const speedBonusAllowance = Math.max(0, wordCount - 1) * 0.25;
+    timeSpentSeconds = Math.max(0.1, timeSpentSeconds - speedBonusAllowance);
+
     if (localDiff.isWrong) {
       body.style.backgroundColor = "#e74c3c";
       playSound("fail");
       metricsPanel.textContent = "Incorrect.";
       if (sessionMetrics[card.front]) sessionMetrics[card.front].wrong++;
+      cardWeights[currentCardIndex] = 5;
     } else {
-      body.style.backgroundColor = "#2ecc71";
       playSound("success");
       if (sessionMetrics[card.front]) {
         sessionMetrics[card.front].correct++;
-        sessionMetrics[card.front].correctTimes.push(timeSpent);
+        sessionMetrics[card.front].correctTimes.push(timeSpentSeconds);
       }
-      metricsPanel.textContent = `Correct! | Clear Time: ${timeSpent.toFixed(2)}s`;
+
+      // Mirror your Edge Function's exact speed milestone scaling thresholds
+      let ratingLabel = "Good";
+      if (timeSpentSeconds <= 1) { ratingLabel = "Easy!"; cardWeights[currentCardIndex] = 1; }
+      else if (timeSpentSeconds <= 2) { ratingLabel = "Good"; cardWeights[currentCardIndex] = 2; }
+      else if (timeSpentSeconds <= 3) { ratingLabel = "Hard"; cardWeights[currentCardIndex] = 4; }
+      else { ratingLabel = "Slow"; cardWeights[currentCardIndex] = 5; }
+
+      let colors = { "Easy!": "#2ecc71", "Good": "#3498db", "Hard": "#f1c40f", "Slow": "#e67e22" };
+      body.style.backgroundColor = colors[ratingLabel] || "#3498db";
+      metricsPanel.textContent = `${ratingLabel} | Adjusted Time: ${timeSpentSeconds.toFixed(2)}s`;
     }
     
     transitionTimer = setTimeout(() => {
-      currentCardIndex = (currentCardIndex + 1) % flashcards.length;
+      currentCardIndex = getLocalWeightedNextIndex();
       loadNextCard();
     }, localDiff.isWrong ? 2000 : 800);
+  }
+
+  // Mirror your Edge Function's Exact Anti-Repeat Spaced Repetition Picker
+  function getLocalWeightedNextIndex() {
+    if (cardWeights.length <= 1) return 0;
+    let selectionWeights = [...cardWeights];
+    selectionWeights[currentCardIndex] = 0; // Prevent repeating current card straight away
+
+    const totalWeight = selectionWeights.reduce((sum, w) => sum + w, 0);
+    let randomRoll = Math.random() * totalWeight;
+    
+    for (let i = 0; i < selectionWeights.length; i++) {
+      randomRoll -= selectionWeights[i];
+      if (randomRoll <= 0) return i;
+    }
+    return (currentCardIndex + 1) % flashcards.length;
   }
 
   document.getElementById("results-close-btn").addEventListener("click", () => {
