@@ -348,6 +348,7 @@ velocity engine"></textarea>
   let cardWeights = [];
   const typingDelay = 250;
   
+  // Element Selector Nodes
   const setupScreen = document.getElementById("setup-screen");
   const practiceScreen = document.getElementById("practice-screen");
   const body = document.body;
@@ -364,6 +365,7 @@ velocity engine"></textarea>
   const modalCloseX = document.getElementById("modal-close-x");
   const modalCloseBtn = document.getElementById("modal-close-btn");
 
+  // Popup Event Rules
   infoBtn.addEventListener("click", () => { instructionModal.style.display = "flex"; });
   const closeOverlay = () => { instructionModal.style.display = "none"; };
   modalCloseX.addEventListener("click", closeOverlay);
@@ -373,6 +375,7 @@ velocity engine"></textarea>
     if (e.target === instructionModal) { closeOverlay(); }
   });
 
+  // Sound Engine
   function playSound(type) {
     try {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -398,6 +401,7 @@ velocity engine"></textarea>
     } catch (e) { console.error(e); }
   }
 
+  // Text Diff Calculator
   function computeVisualDiff(typed, target) {
     let html = "";
     let isWrong = false;
@@ -419,7 +423,8 @@ velocity engine"></textarea>
     }
     return { html, isWrong };
   }
-startBtn.addEventListener("click", () => {
+ // Handle List Submission
+  startBtn.addEventListener("click", () => {
     const rawInput = customListInput.value.trim();
     if (!rawInput) {
       alert("Please enter at least one word or phrase to practice.");
@@ -514,8 +519,7 @@ startBtn.addEventListener("click", () => {
     setupScreen.style.display = "flex";
     customListInput.focus();
   });
-
-  function loadNextCard() {
+ function loadNextCard() {
     body.style.backgroundColor = "";
     feedbackPanel.style.display = "none";
     inputField.style.display = "block";
@@ -545,6 +549,7 @@ startBtn.addEventListener("click", () => {
     }
   });
 
+  // Core Secured Response Evaluation Engine
   function evaluateAnswer() {
     const card = flashcards[currentCardIndex];
     const typedText = inputField.value.trim();
@@ -586,13 +591,11 @@ startBtn.addEventListener("click", () => {
             sessionMetrics[card.front].correct++;
             sessionMetrics[card.front].correctTimes.push(result.timeSpentSeconds);
           }
-          // SYNCED FIX: Matched your Edge script's specific output strings exactly
           let colors = { "Easy!": "#2ecc71", "Good": "#3498db", "Hard": "#f1c40f", "Slow": "#e67e22" };
           body.style.backgroundColor = colors[result.ratingLabel] || "#3498db";
           metricsPanel.textContent = `${result.ratingLabel} | Adjusted Time: ${result.timeSpentSeconds.toFixed(2)}s`;
         }
 
-        // SYNCED FIX: Map directly to nextSelectedIndex from your edge return data
         transitionTimer = setTimeout(() => {
           if (result && typeof result.nextSelectedIndex === 'number') {
             currentCardIndex = result.nextSelectedIndex;
@@ -604,31 +607,37 @@ startBtn.addEventListener("click", () => {
       })
       .catch(err => {
         console.warn("Cloud tracking connection failed. Running local fallback sequence:", err);
-        const timeSpent = (entryFinishedTime - cardShownTime) / 1000;
-        
-        if (localDiff.isWrong) {
-          body.style.backgroundColor = "#e74c3c";
-          playSound("fail");
-          metricsPanel.textContent = "Incorrect.";
-          if (sessionMetrics[card.front]) sessionMetrics[card.front].wrong++;
-          if (Array.isArray(cardWeights)) cardWeights[currentCardIndex] = 5;
-        } else {
-          body.style.backgroundColor = "#2ecc71";
-          playSound("success");
-          if (sessionMetrics[card.front]) {
-            sessionMetrics[card.front].correct++;
-            sessionMetrics[card.front].correctTimes.push(timeSpent);
-          }
-          metricsPanel.textContent = `Correct! | Clear Time: ${timeSpent.toFixed(2)}s`;
-          if (Array.isArray(cardWeights)) cardWeights[currentCardIndex] = 1;
-        }
-        
-        transitionTimer = setTimeout(() => {
-          currentCardIndex = (currentCardIndex + 1) % flashcards.length;
-          loadNextCard();
-        }, localDiff.isWrong ? 2000 : 800);
+        executeLocalGradingFallback(localDiff);
       });
+    } else {
+      executeLocalGradingFallback(localDiff);
     }
+  }
+
+  function executeLocalGradingFallback(localDiff) {
+    const card = flashcards[currentCardIndex];
+    console.warn("Running structural fallback execution layer.");
+    const timeSpent = (entryFinishedTime - cardShownTime) / 1000;
+    
+    if (localDiff.isWrong) {
+      body.style.backgroundColor = "#e74c3c";
+      playSound("fail");
+      metricsPanel.textContent = "Incorrect.";
+      if (sessionMetrics[card.front]) sessionMetrics[card.front].wrong++;
+    } else {
+      body.style.backgroundColor = "#2ecc71";
+      playSound("success");
+      if (sessionMetrics[card.front]) {
+        sessionMetrics[card.front].correct++;
+        sessionMetrics[card.front].correctTimes.push(timeSpent);
+      }
+      metricsPanel.textContent = `Correct! | Clear Time: ${timeSpent.toFixed(2)}s`;
+    }
+    
+    transitionTimer = setTimeout(() => {
+      currentCardIndex = (currentCardIndex + 1) % flashcards.length;
+      loadNextCard();
+    }, localDiff.isWrong ? 2000 : 800);
   }
 
   document.getElementById("results-close-btn").addEventListener("click", () => {
