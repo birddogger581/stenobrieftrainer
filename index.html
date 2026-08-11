@@ -520,7 +520,7 @@ velocity engine"></textarea>
     setupScreen.style.display = "flex";
     customListInput.focus();
   });
-   function loadNextCard() {
+    function loadNextCard() {
     body.style.backgroundColor = "";
     feedbackPanel.style.display = "none";
     inputField.style.display = "block";
@@ -594,6 +594,7 @@ velocity engine"></textarea>
             sessionMetrics[card.front].correct++;
             sessionMetrics[card.front].correctTimes.push(data.timeSpentSeconds);
           }
+          // LOCK-IN FIX: This live mapping parses your secure server ratings instantly
           let colors = { "Easy!": "#2ecc71", "Good": "#3498db", "Hard": "#f1c40f", "Slow": "#e67e22" };
           body.style.backgroundColor = colors[data.ratingLabel] || "#3498db";
           metricsPanel.textContent = `${data.ratingLabel} | Secure Adjusted Time: ${data.timeSpentSeconds.toFixed(2)}s`;
@@ -617,7 +618,6 @@ velocity engine"></textarea>
     }
   }
 
-  // BASIC OFFLINE ROUTINE: Hides your grading logic entirely while keeping the app running
   function executeOfflineFallbackRoutine(localDiff) {
     const card = flashcards[currentCardIndex];
     if (localDiff.isWrong) {
@@ -632,7 +632,7 @@ velocity engine"></textarea>
         sessionMetrics[card.front].correct++;
         sessionMetrics[card.front].correctTimes.push((entryFinishedTime - cardShownTime) / 1000);
       }
-      metricsPanel.textContent = "Correct!";
+      metricsPanel.textContent = "Correct! (Offline Mode)";
     }
     
     transitionTimer = setTimeout(() => {
@@ -646,6 +646,19 @@ velocity engine"></textarea>
     resetBtn.click();
   });
 
+  // LOCK-IN FIX: Synchronize layout safety rules at the bottom of the script
+  if (!supabaseClient) {
+    startBtn.disabled = true;
+    startBtn.textContent = "Syncing Secure Cloud Engine...";
+    
+    const nativeCheckInterval = setInterval(() => {
+      if (supabaseClient) {
+        clearInterval(nativeCheckInterval);
+        startBtn.disabled = false;
+        startBtn.textContent = "Start Training";
+      }
+    }, 100);
+  }
 })();
 </script>
 </body>
