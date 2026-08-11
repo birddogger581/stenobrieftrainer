@@ -32,7 +32,6 @@
       box-shadow: 0 10px 30px rgba(0,0,0,0.3);
       text-align: center;
     }
-    /* Banner & Info Button Styling */
     .app-title-banner {
       margin-bottom: 25px;
       padding-bottom: 15px;
@@ -65,10 +64,8 @@
       border-color: var(--accent-color);
       background: rgba(46, 204, 113, 0.1);
     }
-
-    /* POP-UP MODAL STYLING */
     .modal-overlay {
-      display: none; /* Hidden by default */
+      display: none;
       position: fixed;
       top: 0;
       left: 0;
@@ -89,7 +86,7 @@
       border-radius: 10px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.5);
       position: relative;
-      text-align: left; /* Left-aligned for easier reading of instructions */
+      text-align: left;
       animation: fadeIn 0.2s ease-out;
     }
     @keyframes fadeIn {
@@ -109,7 +106,7 @@
     .modal-close-x:hover {
       color: #e74c3c;
     }
-    .modal-content h3 {
+ .modal-content h3 {
       margin-top: 0;
       color: var(--accent-color);
       font-size: 1.5rem;
@@ -118,7 +115,7 @@
     }
     .instruction-body {
       max-height: 300px;
-      overflow-y: auto; /* Scrollable if text gets long */
+      overflow-y: auto;
       margin-bottom: 20px;
       font-size: 0.95rem;
       line-height: 1.5;
@@ -143,8 +140,6 @@
     .modal-close-btn:hover {
       background: #95a5a6;
     }
-
-    /* Setup Screen Layout */
     #setup-screen {
       display: flex;
       flex-direction: column;
@@ -154,7 +149,7 @@
       margin-top: 0;
       font-size: 1.8rem;
     }
-    textarea {
+    #custom-list-input {
       width: 100%;
       box-sizing: border-box;
       height: 150px;
@@ -179,7 +174,6 @@
     #start-btn:hover {
       background-color: #27ae60;
     }
-    /* Practice Screen Layout */
     #practice-screen {
       display: none;
       margin-top: 20px;
@@ -239,18 +233,20 @@
       font-weight: 600;
       margin-top: 15px;
     }
+    #results-table-body td {
+      padding: 8px 4px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
   </style>
 </head>
 <body>
 
 <div id="app-container">
-  <!-- Title Banner -->
   <header class="app-title-banner">
     <h1>Steno Brief Trainer</h1>
     <button id="info-btn">How it works</button>
   </header>
 
-  <!-- 1. SETUP SCREEN -->
   <div id="setup-screen">
     <h2>Paste Your Training List</h2>
     <p style="color: #bdc3c7; margin: 0 0 10px 0; font-size: 0.95rem;">Enter each word or phrase on a new line. (Up to 10)</p>
@@ -261,7 +257,6 @@ velocity engine"></textarea>
     <button id="start-btn">Start Training</button>
   </div>
 
-  <!-- 2. PRACTICE SCREEN -->
   <div id="practice-screen">
     <button id="reset-btn">Modify List</button>
     <div id="timer-display" style="font-size: 1.5rem; font-weight: bold; margin-bottom: 15px; color: #e74c3c;">Time Remaining: --:--</div>
@@ -275,42 +270,33 @@ velocity engine"></textarea>
   </div>
 </div>
 
-<!-- POP-UP MODAL OVERLAY -->
 <div id="instruction-modal" class="modal-overlay">
   <div class="modal-content">
     <button class="modal-close-x" id="modal-close-x">&times;</button>
     <h3>How to Use Brief Builder</h3>
-    
     <div class="instruction-body">
-      <!-- Edit or replace these text blocks with your own copy -->
       <div class="instruction-step">
         <strong>Step 1: Input List</strong><br>
         Paste your words or phrases you would like to train on into the box. Separate each item by pressing Enter to place it on a brand new line. Maximum of 10 allowed.
       </div>
-      
       <div class="instruction-step">
         <strong>Step 2: Ensure Translation Software is running</strong><br>
         Make sure you have your translation software (casecat, plover etc.) open and ready to translate your steno strokes.
       </div>
-
-       <div class="instruction-step">
+      <div class="instruction-step">
         <strong>Step 3: Press Start Training</strong><br>
         Press Start Training to load your words and phrases!
       </div>
-
       <div class="instruction-step">
-       <strong>Step 4: Listen and Stroke</strong><br>
+        <strong>Step 4: Listen and Stroke</strong><br>
         Listen to the words or phrases and type them into the box. 
       </div>
-
       <div class="instruction-step">
         <strong>Step 5 Real-time Feedback: </strong><br>
         Answers will be graded with green letters meaning your entry is correct. Red strike-through tags highlight typos, while faded yellow elements indicate missing characters.<br><br>
-	Correct answers will change the background color based on time. Green is very fast, Blue is good, Yellow is a little long and Red is too long.
+        Correct answers will change the background color based on time. Green is very fast, Blue is good, Yellow is a little long and Red is too long.
       </div>
-     
     </div>
-
     <button class="modal-close-btn" id="modal-close-btn">Close Instructions</button>
   </div>
 </div>
@@ -318,7 +304,6 @@ velocity engine"></textarea>
 <div id="results-modal" class="modal-overlay">
   <div class="modal-content" style="max-width: 550px;">
     <h3>Training Session Summary</h3>
-    
     <div class="instruction-body">
       <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem;">
         <thead>
@@ -329,29 +314,28 @@ velocity engine"></textarea>
             <th style="padding: 8px 4px; text-align: right; color: #f1c40f;">Avg Time</th>
           </tr>
         </thead>
-        <tbody id="results-table-body">
-          <!-- Dynamically populated via JavaScript -->
-        </tbody>
+        <tbody id="results-table-body"></tbody>
       </table>
     </div>
-
     <button class="modal-close-btn" id="results-close-btn" style="background: var(--accent-color);">Back to Setup</button>
   </div>
 </div>
 
 <script>
 (() => {
-  // Global Engine State
-  const SUPABASE_URL = "https://crjfasscqdeyklzzezor.supabase.co"; 
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNyamZhc3NjcWRleWtsenplem9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0NjM1NzksImV4cCI6MjEwMjAzOTU3OX0.4t0_Vo_La1Zwm9ecT_K1j3KifsWBxUofAZeg-fcEcs0";    
-  const scriptEl = document.createElement('script');
-  scriptEl.src = "https://jsdelivr.net";
+  const SUPABASE_URL = "https://supabase.co"; 
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNyamZhc3NjcWRleWtsenplem9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY0NjM1NzksImV4cCI6MjEwMjA0OTU3OX0.4t0_Vo_La1Zwm9ecT_K1j3KifsWBxUofAZeg-fcEcs0";    
+const scriptEl = document.createElement('script');
+  scriptEl.src = "https://unpkg.com";
   document.head.appendChild(scriptEl);
   
   let supabaseClient = null;
   scriptEl.onload = () => {
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    if (window.supabase) {
+      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
   };
+
   let flashcards = [];
   let currentCardIndex = 0;
   let cardShownTime = 0;
@@ -364,11 +348,8 @@ velocity engine"></textarea>
   let cardWeights = [];
   const typingDelay = 250;
   
-  // View Screens
   const setupScreen = document.getElementById("setup-screen");
   const practiceScreen = document.getElementById("practice-screen");
-
-  // Interactive UI Elements
   const body = document.body;
   const customListInput = document.getElementById("custom-list-input");
   const startBtn = document.getElementById("start-btn");
@@ -378,33 +359,20 @@ velocity engine"></textarea>
   const feedbackPanel = document.getElementById("feedback-panel");
   const comparisonOutput = document.getElementById("comparison-output");
   const metricsPanel = document.getElementById("metrics-panel");
-
-  // Pop-up Modal Elements
   const instructionModal = document.getElementById("instruction-modal");
   const infoBtn = document.getElementById("info-btn");
   const modalCloseX = document.getElementById("modal-close-x");
   const modalCloseBtn = document.getElementById("modal-close-btn");
 
-  // Modal Open/Close Event Listeners
-  infoBtn.addEventListener("click", () => {
-    instructionModal.style.display = "flex";
-  });
-
-  const closeOverlay = () => {
-    instructionModal.style.display = "none";
-  };
-
+  infoBtn.addEventListener("click", () => { instructionModal.style.display = "flex"; });
+  const closeOverlay = () => { instructionModal.style.display = "none"; };
   modalCloseX.addEventListener("click", closeOverlay);
   modalCloseBtn.addEventListener("click", closeOverlay);
   
-  // Close modal if user clicks anywhere on the dark background overlay
   instructionModal.addEventListener("click", (e) => {
-    if (e.target === instructionModal) {
-      closeOverlay();
-    }
+    if (e.target === instructionModal) { closeOverlay(); }
   });
 
-  // Web Audio Context Synthesizer Engine
   function playSound(type) {
     try {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -430,7 +398,6 @@ velocity engine"></textarea>
     } catch (e) { console.error(e); }
   }
 
-  // Linear Character Diff Engine
   function computeVisualDiff(typed, target) {
     let html = "";
     let isWrong = false;
@@ -452,48 +419,28 @@ velocity engine"></textarea>
     }
     return { html, isWrong };
   }
-
-  // Handle List Submission
-  startBtn.addEventListener("click", () => {
+startBtn.addEventListener("click", () => {
     const rawInput = customListInput.value.trim();
     if (!rawInput) {
       alert("Please enter at least one word or phrase to practice.");
       return;
     }
 
-    const lines = rawInput.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
-    
-     if (lines.length > 10) {
+    let lines = rawInput.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
+    if (lines.length > 10) {
       alert(`Notice: Public beta lists are restricted to 10 items. Your list will be truncated automatically.`);
+      lines = lines.slice(0, 10);
     }
 
     startBtn.disabled = true;
     startBtn.textContent = "Loading Engine...";
 
-    fetch('https://ipify.org')
-      .then(res => res.json())
-      .then(ipData => {
-        if (supabaseClient) {
-          return supabaseClient.rpc('process_and_log_training_list', { 
-            visitor_ip: ipData.ip,
-            raw_lines: lines 
-          });
-        } else {
-          return { data: lines.slice(0, 10), error: null };
-        }
-      })
+    Promise.resolve({ data: lines, error: null })
       .then(response => {
         if (response.error) throw response.error;
-        
         const processedLines = response.data || [];
 
-        flashcards = processedLines.map(item => {
-          return {
-            front: item,
-            back: item
-          };
-        });
-
+        flashcards = processedLines.map(item => ({ front: item, back: item }));
         sessionMetrics = {};
         processedLines.forEach(item => {
           sessionMetrics[item] = { correct: 0, wrong: 0, correctTimes: [] };
@@ -506,46 +453,37 @@ velocity engine"></textarea>
           [cardWeights[i], cardWeights[j]] = [cardWeights[j], cardWeights[i]];
         }
 
-     // TIMER CALCULATION AND INTERVAL START LOGIC
         const timerDisplay = document.getElementById("timer-display");
         secondsRemaining = Math.ceil(processedLines.length / 5) * 60; 
-
         clearInterval(countdownInterval);
 
         countdownInterval = setInterval(() => {
           secondsRemaining--;
-
           const minutes = Math.floor(secondsRemaining / 60);
           const secs = secondsRemaining % 60;
           timerDisplay.textContent = `Time Remaining: ${minutes}:${secs < 10 ? '0' : ''}${secs}`;
 
           if (secondsRemaining <= 0) {
             clearInterval(countdownInterval);
-            
             inputField.blur();
             inputField.style.display = "none";
             
-            // Compile tracking dashboard window items
             const tbody = document.getElementById("results-table-body");
-            tbody.innerHTML = ""; // Flush template records
+            tbody.innerHTML = "";
             
             for (const [phrase, data] of Object.entries(sessionMetrics)) {
-              // Calculate mean duration value
               const sum = data.correctTimes.reduce((a, b) => a + b, 0);
               const avg = data.correctTimes.length > 0 ? (sum / data.correctTimes.length).toFixed(2) + "s" : "--";
              
               const row = document.createElement("tr");
-              row.style.borderBottom = "1px solid rgba(255,255,255,0.05)";
               row.innerHTML = `
-                <td style="padding: 8px 4px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${phrase}</td>
-                <td style="padding: 8px 4px; text-align: center; color: #2ecc71; font-weight: bold;">${data.correct}</td>
-                <td style="padding: 8px 4px; text-align: center; color: #e74c3c; font-weight: bold;">${data.wrong}</td>
-                <td style="padding: 8px 4px; text-align: right; color: #f1c40f;">${avg}</td>
+                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${phrase}</td>
+                <td style="text-align: center; color: #2ecc71; font-weight: bold;">${data.correct}</td>
+                <td style="text-align: center; color: #e74c3c; font-weight: bold;">${data.wrong}</td>
+                <td style="text-align: right; color: #f1c40f;">${avg}</td>
               `;
               tbody.appendChild(row);
             }
-            
-            // Present overlay to user
             document.getElementById("results-modal").style.display = "flex";
           }
         }, 1000);
@@ -565,19 +503,11 @@ velocity engine"></textarea>
       });
   });
 
-  // Handle Reset Back to Configuration
   resetBtn.addEventListener("click", () => {
-    // Clear any active automated background transitions instantly
     clearInterval(countdownInterval);
     clearTimeout(typingTimer);
     clearTimeout(transitionTimer);
-    
-    // Stop speech engine speech tasks immediately
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
-
-    // Toggle screen layouts
+    if ('speechSynthesis' in window) { window.speechSynthesis.cancel(); }
     body.style.backgroundColor = "";
     practiceScreen.style.display = "none";
     setupScreen.style.display = "flex";
@@ -601,39 +531,28 @@ velocity engine"></textarea>
       utterance.lang = 'en-US';
       window.speechSynthesis.speak(utterance);
     }
-
     cardShownTime = performance.now();
     entryFinishedTime = cardShownTime;
   }
 
-  // Key Event Processing
   inputField.addEventListener("input", () => {
     entryFinishedTime = performance.now();
     clearTimeout(typingTimer);
-
     if (inputField.value.length > 0) {
-      typingTimer = setTimeout(() => {
-        evaluateAnswer();
-      }, typingDelay);
+      typingTimer = setTimeout(() => { evaluateAnswer(); }, typingDelay);
     }
   });
 
   function evaluateAnswer() {
     const card = flashcards[currentCardIndex];
     const typedText = inputField.value.trim();
-
     inputField.style.display = "none";
     feedbackPanel.style.display = "block";
 
-    // Build the visual text diff interface block locally
     const localDiff = computeVisualDiff(typedText, card.back.trim());
     comparisonOutput.innerHTML = localDiff.html;
 
-    // ========================================================
-    // SECURE CLOUD TRANSACTION ROUTER PIPELINE
-    // Routes parameters to the secure engine, keeping your proprietary logic hidden
-    // ========================================================
-    if (supabaseClient) {
+    if (supabaseClient && supabaseClient.functions) {
       supabaseClient.functions.invoke('evaluate-steno-stroke', {
         body: {
           typedText: typedText,
@@ -647,8 +566,6 @@ velocity engine"></textarea>
       .then(response => {
         if (response.error) throw response.error;
         const result = response.data;
-
-        // Sync your tracking states using the secure values returned from the server
         cardWeights = result.updatedWeights;
         
         if (result.isWrong) {
@@ -657,30 +574,57 @@ velocity engine"></textarea>
           metricsPanel.textContent = "Incorrect.";
         } else {
           playSound("success");
-          
           if (sessionMetrics[card.front]) {
             sessionMetrics[card.front].correct++;
             sessionMetrics[card.front].correctTimes.push(result.timeSpentSeconds);
           }
-
           let colors = { "Easy!": "#2ecc71", "Good": "#3498db", "Hard": "#f1c40f", "Slow": "#e74c3c" };
           body.style.backgroundColor = colors[result.ratingLabel] || "#3498db";
           metricsPanel.textContent = `${result.ratingLabel} | Clear Time: ${result.timeSpentSeconds.toFixed(2)}s`;
         }
-
-        // Safe card progression using the server-selected index
         transitionTimer = setTimeout(() => {
           currentCardIndex = result.nextSelectedIndex;
           loadNextCard();
         }, result.isWrong ? 3500 : 600);
       })
       .catch(err => {
-        console.error("Secure execution connection lost:", err);
-        // Clean client fallback routine to keep the app running if user goes offline
-        cardWeights[currentCardIndex] = localDiff.isWrong ? 5 : 2;
+        console.warn("Using baseline safe local evaluation processing mode:", err);
+        const timeSpent = (entryFinishedTime - cardShownTime) / 1000;
+        if (localDiff.isWrong) {
+          body.style.backgroundColor = "#e74c3c";
+          playSound("fail");
+          metricsPanel.textContent = "Incorrect.";
+          sessionMetrics[card.front].wrong++;
+        } else {
+          body.style.backgroundColor = "#2ecc71";
+          playSound("success");
+          sessionMetrics[card.front].correct++;
+          sessionMetrics[card.front].correctTimes.push(timeSpent);
+          metricsPanel.textContent = `Correct! | Clear Time: ${timeSpent.toFixed(2)}s`;
+        }
+        transitionTimer = setTimeout(() => {
+          currentCardIndex = (currentCardIndex + 1) % flashcards.length;
+          loadNextCard();
+        }, localDiff.isWrong ? 2000 : 800);
+      });
+    } else {
+      const timeSpent = (entryFinishedTime - cardShownTime) / 1000;
+      if (localDiff.isWrong) {
+        body.style.backgroundColor = "#e74c3c";
+        playSound("fail");
+        metricsPanel.textContent = "Incorrect.";
+        sessionMetrics[card.front].wrong++;
+      } else {
+        body.style.backgroundColor = "#2ecc71";
+        playSound("success");
+        sessionMetrics[card.front].correct++;
+        sessionMetrics[card.front].correctTimes.push(timeSpent);
+        metricsPanel.textContent = `Correct! | Clear Time: ${timeSpent.toFixed(2)}s`;
+      }
+      transitionTimer = setTimeout(() => {
         currentCardIndex = (currentCardIndex + 1) % flashcards.length;
         loadNextCard();
-      });
+      }, localDiff.isWrong ? 2000 : 800);
     }
   }
 
@@ -688,9 +632,7 @@ velocity engine"></textarea>
     document.getElementById("results-modal").style.display = "none";
     resetBtn.click();
   });
-
 })();
 </script>
-
 </body>
 </html>
