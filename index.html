@@ -519,7 +519,7 @@ velocity engine"></textarea>
     setupScreen.style.display = "flex";
     customListInput.focus();
   });
- function loadNextCard() {
+  function loadNextCard() {
     body.style.backgroundColor = "";
     feedbackPanel.style.display = "none";
     inputField.style.display = "block";
@@ -571,16 +571,17 @@ velocity engine"></textarea>
           currentIndex: currentCardIndex
         }
       })
-      .then(response => {
-        if (response.error) throw response.error;
-        const result = response.data;
+      // RESTORED FIX: Destructured the direct payload properties from the Supabase Response Object wrapper
+      .then(({ data, error }) => {
+        if (error) throw error;
+        if (!data) throw new Error("Empty edge response payload execution error.");
 
         // Save the updated spacing weight priority map back to local state
-        if (result && result.updatedWeights) {
-          cardWeights = result.updatedWeights;
+        if (data.updatedWeights) {
+          cardWeights = data.updatedWeights;
         }
         
-        if (result.isWrong) {
+        if (data.isWrong) {
           body.style.backgroundColor = "#e74c3c";
           playSound("fail");
           metricsPanel.textContent = "Incorrect.";
@@ -589,24 +590,25 @@ velocity engine"></textarea>
           playSound("success");
           if (sessionMetrics[card.front]) {
             sessionMetrics[card.front].correct++;
-            sessionMetrics[card.front].correctTimes.push(result.timeSpentSeconds);
+            sessionMetrics[card.front].correctTimes.push(data.timeSpentSeconds);
           }
+          // RESTORED FIX: Dynamically match all four of your custom Deno server-side metric flags 
           let colors = { "Easy!": "#2ecc71", "Good": "#3498db", "Hard": "#f1c40f", "Slow": "#e67e22" };
-          body.style.backgroundColor = colors[result.ratingLabel] || "#3498db";
-          metricsPanel.textContent = `${result.ratingLabel} | Adjusted Time: ${result.timeSpentSeconds.toFixed(2)}s`;
+          body.style.backgroundColor = colors[data.ratingLabel] || "#3498db";
+          metricsPanel.textContent = `${data.ratingLabel} | Secure Adjusted Time: ${data.timeSpentSeconds.toFixed(2)}s`;
         }
 
         transitionTimer = setTimeout(() => {
-          if (result && typeof result.nextSelectedIndex === 'number') {
-            currentCardIndex = result.nextSelectedIndex;
+          if (data && typeof data.nextSelectedIndex === 'number') {
+            currentCardIndex = data.nextSelectedIndex;
           } else {
             currentCardIndex = (currentCardIndex + 1) % flashcards.length;
           }
           loadNextCard();
-        }, result.isWrong ? 2500 : 700);
+        }, data.isWrong ? 2500 : 700);
       })
       .catch(err => {
-        console.warn("Cloud tracking connection failed. Running local fallback sequence:", err);
+        console.warn("Cloud connection error. Bypassing tracking script to run local fallback loop:", err);
         executeLocalGradingFallback(localDiff);
       });
     } else {
