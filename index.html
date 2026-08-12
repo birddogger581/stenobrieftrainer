@@ -314,7 +314,7 @@ bipartisan"></textarea>
 
     const localDiff = computeVisualDiff(typedText, card.back.trim()); 
     comparisonOutput.innerHTML = localDiff.html; 
-    metricsPanel.textContent = "Calculating Velocity...";
+    metricsPanel.textContent = "Checking Speed...";
 
     if (!supabaseClient && window.supabase) { supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); }
     
@@ -343,10 +343,10 @@ bipartisan"></textarea>
           }
         }
 
-        transitionTimer = setTimeout(() => { 
+         transitionTimer = setTimeout(() => { 
           currentCardIndex = (data && typeof data.nextSelectedIndex === 'number') ? data.nextSelectedIndex : (currentCardIndex + 1) % flashcards.length; 
           loadNextCard(); 
-        }, data.isWrong ? 1800 : 450);
+        }, data.isWrong ? 1500 : 100);
       })
       .catch(err => { 
         console.warn("Cloud connection error, dropping to offline fallback routine:", err); 
