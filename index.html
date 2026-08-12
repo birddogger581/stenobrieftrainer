@@ -280,7 +280,7 @@ velocity engine"></textarea>
     if ('speechSynthesis' in window) { window.speechSynthesis.cancel(); }
     body.style.backgroundColor = ""; practiceScreen.style.display = "none"; setupScreen.style.display = "flex"; customListInput.focus();
   });
-    function loadNextCard() {
+   function loadNextCard() {
     body.style.backgroundColor = ""; feedbackPanel.style.display = "none"; inputField.style.display = "block"; inputField.value = ""; inputField.focus();
     if (flashcards.length === 0) return; const card = flashcards[currentCardIndex]; promptDisplay.textContent = card.front;
     if ('speechSynthesis' in window) {
@@ -293,14 +293,13 @@ velocity engine"></textarea>
     if (inputField.value.length > 0) { typingTimer = setTimeout(() => { evaluateAnswer(); }, typingDelay); }
   });
   
-  // Fully Restructured Secure Processing Routing Engine
   function evaluateAnswer() {
     const card = flashcards[currentCardIndex], typedText = inputField.value.trim(); inputField.style.display = "none"; feedbackPanel.style.display = "block";
     const localDiff = computeVisualDiff(typedText, card.back.trim()); comparisonOutput.innerHTML = localDiff.html; totalAnswersInSession++;
     
     if (!supabaseClient && window.supabase) { supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); }
     
-    // ONE SOLID TRANSMISSION LINE: Send straight to your Edge function without brittle browser lookups
+    // CALLS THE SINGLE SECURE EDGE FUNCTION GATEWAY
     if (supabaseClient && supabaseClient.functions) {
       supabaseClient.functions.invoke('evaluate-steno-stroke', {
         body: { typedText: typedText, targetText: card.back, cardWeights: Array.isArray(cardWeights) ? cardWeights : [], cardShownTime: cardShownTime, entryFinishedTime: entryFinishedTime, currentIndex: currentCardIndex, totalAnswersInSession: totalAnswersInSession }
@@ -308,13 +307,6 @@ velocity engine"></textarea>
       .then(({ data, error }) => {
         if (error) throw error; if (!data) throw new Error("Empty payload.");
         if (data.updatedWeights) cardWeights = data.updatedWeights;
-        
-        // Handle database logging increments cleanly if returning a success payload
-        if (supabaseClient) {
-          supabaseClient.rpc('log_flashcard_review', { visitor_ip: data.clientIP || "secure_cloud_user" })
-            .then(({ error: rpcErr }) => { if (rpcErr) console.warn("SQL row logger skipped:", rpcErr.message); })
-            .catch(e => console.error("Database log write failed:", e));
-        }
 
         if (data.isWrong) {
           body.style.backgroundColor = "#e74c3c"; playSound("fail"); metricsPanel.textContent = "Incorrect."; if (sessionMetrics[card.front]) sessionMetrics[card.front].wrong++;
