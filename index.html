@@ -299,49 +299,51 @@ velocity engine"></textarea>
     
     if (!supabaseClient && window.supabase) { supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); }
     
-    // RESTORED NATIVE FETCH METRICS: Grabs the client IP address securely inside the browser window
-    fetch('https://ipify.org')
-      .then(res => res.json())
-      .then(ipData => {
-        const clientIP = ipData.ip || "unknown_browser_user";
+    // Create a unique temporary global function name for the JSONP response
+    const callbackName = 'steno_ip_callback_' + Math.floor(Math.random() * 100000);
+    
+    // Assign the callback handler globally so the browser can hear it
+    window[callbackName] = function(ipData) {
+      const clientIP = ipData.ip || "unknown_browser_user";
+      
+      // Clean up the script tag from the document head immediately
+      delete window[callbackName];
+      const traceScript = document.getElementById(callbackName);
+      if (traceScript) traceScript.remove();
 
-        // 1. Fire off your database tracking table log script directly from the client side
-        if (supabaseClient) {
-          supabaseClient.rpc('log_flashcard_review', { visitor_ip: clientIP })
-            .then(({ error }) => { if (error) console.warn("SQL row logger skipped:", error.message); })
-            .catch(e => console.error("Database table write failed:", e));
-        }
+      // 1. Fire off your database tracking table log script directly from the client side
+      if (supabaseClient) {
+        supabaseClient.rpc('log_flashcard_review', { visitor_ip: clientIP })
+          .then(({ error }) => { if (error) console.warn("SQL row logger skipped:", error.message); })
+          .catch(e => console.error("Database table write failed:", e));
+      }
 
-        // 2. Proceed to run your secure core flashcard evaluation on your Edge function
-        if (supabaseClient && supabaseClient.functions) {
-          return supabaseClient.functions.invoke('evaluate-steno-stroke', {
-            body: { typedText: typedText, targetText: card.back, cardWeights: Array.isArray(cardWeights) ? cardWeights : [], cardShownTime: cardShownTime, entryFinishedTime: entryFinishedTime, currentIndex: currentCardIndex, totalAnswersInSession: totalAnswersInSession }
-          });
-        } else {
-          throw new Error("Supabase connection unavailable.");
-        }
-      })
-      .then(response => {
-        // Handle the incoming server response payload data
-        if (!response || response.error) throw (response ? response.error : new Error("No response payload."));
-        const result = response.data;
-        
-        if (result && result.updatedWeights) cardWeights = result.updatedWeights;
-        
-        if (result.isWrong) {
-          body.style.backgroundColor = "#e74c3c"; playSound("fail"); metricsPanel.textContent = "Incorrect."; if (sessionMetrics[card.front]) sessionMetrics[card.front].wrong++;
-        } else {
-          playSound("success"); if (sessionMetrics[card.front]) { sessionMetrics[card.front].correct++; sessionMetrics[card.front].correctTimes.push(result.timeSpentSeconds); }
-          let colors = { "Easy!": "#2ecc71", "Good": "#3498db", "Hard": "#f1c40f", "Slow": "#c0392b" };
-          body.style.backgroundColor = colors[result.ratingLabel] || "#3498db"; 
-          metricsPanel.textContent = `${result.ratingLabel} | Secure Time: ${result.timeSpentSeconds.toFixed(2)}s`;
-        }
-        transitionTimer = setTimeout(() => { currentCardIndex = (result && typeof result.nextSelectedIndex === 'number') ? result.nextSelectedIndex : (currentCardIndex + 1) % flashcards.length; loadNextCard(); }, result.isWrong ? 2500 : 700);
-      })
-      .catch(err => { 
-        console.warn("Cloud connection skipped or blocked. Running local tracking backup loop:", err); 
-        executeLocalGradingFallback(localDiff); 
-      });
+      // 2. Proceed to run your secure core flashcard evaluation on your Edge function
+      if (supabaseClient && supabaseClient.functions) {
+        supabaseClient.functions.invoke('evaluate-steno-stroke', {
+          body: { typedText: typedText, targetText: card.back, cardWeights: Array.isArray(cardWeights) ? cardWeights : [], cardShownTime: cardShownTime, entryFinishedTime: entryFinishedTime, currentIndex: currentCardIndex, totalAnswersInSession: totalAnswersInSession }
+        })
+        .then(({ data, error }) => {
+          if (error) throw error; if (!data) throw new Error("Empty payload.");
+          if (data.updatedWeights) cardWeights = data.updatedWeights;
+          if (data.isWrong) {
+            body.style.backgroundColor = "#e74c3c"; playSound("fail"); metricsPanel.textContent = "Incorrect."; if (sessionMetrics[card.front]) sessionMetrics[card.front].wrong++;
+          } else {
+            playSound("success"); if (sessionMetrics[card.front]) { sessionMetrics[card.front].correct++; sessionMetrics[card.front].correctTimes.push(data.timeSpentSeconds); }
+            let colors = { "Easy!": "#2ecc71", "Good": "#3498db", "Hard": "#f1c40f", "Slow": "#c0392b" };
+            body.style.backgroundColor = colors[data.ratingLabel] || "#3498db"; metricsPanel.textContent = `${data.ratingLabel} | Secure Time: ${data.timeSpentSeconds.toFixed(2)}s`;
+          }
+          transitionTimer = setTimeout(() => { currentCardIndex = (data && typeof data.nextSelectedIndex === 'number') ? data.nextSelectedIndex : (currentCardIndex + 1) % flashcards.length; loadNextCard(); }, data.isWrong ? 2500 : 700);
+        })
+        .catch(err => { console.warn("Cloud connection error:", err); executeLocalGradingFallback(localDiff); });
+      } else { executeLocalGradingFallback(localDiff); }
+    };
+
+    // Injection layer to execute the unblockable JSONP request wrapper
+    const script = document.createElement('script');
+    script.id = callbackName;
+    script.src = `https://ipify.org{callbackName}`;
+    document.head.appendChild(script);
   }
 
   function executeLocalGradingFallback(localDiff) {
