@@ -236,12 +236,21 @@ bipartisan"></textarea>
     }
     return { html, isWrong };
   }
- startBtn.addEventListener("click", () => {
+  startBtn.addEventListener("click", () => {
     const rawInput = customListInput.value.trim();
     if (!rawInput) { alert("Please enter at least one word or phrase to practice."); return; }
     let lines = rawInput.split(/\r?\n/).map(line => line.trim()).filter(line => line.length > 0);
     if (lines.length > 10) { alert(`Notice: Lists are restricted to 10 items.`); lines = lines.slice(0, 10); }
+    
     startBtn.disabled = true; startBtn.textContent = "Loading Engine...";
+
+    // PROACTIVE PRE-WARM ENGINE: Fired instantly to wake up the Deno server container in the background
+    if (supabaseClient && supabaseClient.functions) {
+      supabaseClient.functions.invoke('evaluate-steno-stroke', {
+        body: { typedText: "", targetText: "", cardWeights: [], cardShownTime: 0, entryFinishedTime: 0, currentIndex: 0, totalAnswersInSession: 0 }
+      }).catch(() => { /* Quietly ignore the placeholder response payload */ });
+    }
+
     Promise.resolve({ data: lines, error: null })
       .then(response => {
         if (response.error) throw response.error;
@@ -275,6 +284,7 @@ bipartisan"></textarea>
       })
       .catch(err => { console.error(err); startBtn.disabled = false; startBtn.textContent = "Start Training"; });
   });
+
   resetBtn.addEventListener("click", () => {
     clearInterval(countdownInterval); clearTimeout(typingTimer); clearTimeout(transitionTimer);
     if ('speechSynthesis' in window) { window.speechSynthesis.cancel(); }
@@ -306,6 +316,7 @@ bipartisan"></textarea>
 
   function evaluateAnswer() {
     const card = flashcards[currentCardIndex], typedText = inputField.value.trim(); inputField.style.display = "none"; feedbackPanel.style.display = "block";
+    metricsPanel.textContent = "Calculating Speed"
     const localDiff = computeVisualDiff(typedText, card.back.trim()); comparisonOutput.innerHTML = localDiff.html; totalAnswersInSession++;
     
     if (!supabaseClient && window.supabase) { supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); }
