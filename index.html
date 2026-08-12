@@ -280,26 +280,36 @@ velocity engine"></textarea>
     if ('speechSynthesis' in window) { window.speechSynthesis.cancel(); }
     body.style.backgroundColor = ""; practiceScreen.style.display = "none"; setupScreen.style.display = "flex"; customListInput.focus();
   });
-   function loadNextCard() {
+  function loadNextCard() {
     body.style.backgroundColor = ""; feedbackPanel.style.display = "none"; inputField.style.display = "block"; inputField.value = ""; inputField.focus();
     if (flashcards.length === 0) return; const card = flashcards[currentCardIndex]; promptDisplay.textContent = card.front;
     if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(card.front); utterance.lang = 'en-US'; window.speechSynthesis.speak(utterance);
+      window.supabaseClient ? null : window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(card.front); utterance.lang = 'en-US'; window.speechSynthesis.speak(utterance);
     }
     cardShownTime = performance.now(); entryFinishedTime = cardShownTime;
   }
+
+  // VELOCITY FIX: Instant interceptor fires the millisecond a complete brief outline lands
   inputField.addEventListener("input", () => {
-    entryFinishedTime = performance.now(); clearTimeout(typingTimer);
-    if (inputField.value.length > 0) { typingTimer = setTimeout(() => { evaluateAnswer(); }, typingDelay); }
+    entryFinishedTime = performance.now();
+    clearTimeout(typingTimer);
+    
+    // Instantly evaluates without waiting if the typed text matches the length or outline properties
+    const card = flashcards[currentCardIndex];
+    if (inputField.value.trim().length >= card.back.trim().length) {
+      evaluateAnswer();
+    } else {
+      // Short fallback timer only if you are still midway through a longer multi-stroke outline
+      typingTimer = setTimeout(() => { evaluateAnswer(); }, 180);
+    }
   });
-  
+
   function evaluateAnswer() {
     const card = flashcards[currentCardIndex], typedText = inputField.value.trim(); inputField.style.display = "none"; feedbackPanel.style.display = "block";
     const localDiff = computeVisualDiff(typedText, card.back.trim()); comparisonOutput.innerHTML = localDiff.html; totalAnswersInSession++;
     
     if (!supabaseClient && window.supabase) { supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); }
     
-    // CALLS THE SINGLE SECURE EDGE FUNCTION GATEWAY
     if (supabaseClient && supabaseClient.functions) {
       supabaseClient.functions.invoke('evaluate-steno-stroke', {
         body: { typedText: typedText, targetText: card.back, cardWeights: Array.isArray(cardWeights) ? cardWeights : [], cardShownTime: cardShownTime, entryFinishedTime: entryFinishedTime, currentIndex: currentCardIndex, totalAnswersInSession: totalAnswersInSession }
@@ -315,11 +325,14 @@ velocity engine"></textarea>
           let colors = { "Easy!": "#2ecc71", "Good": "#3498db", "Hard": "#f1c40f", "Slow": "#c0392b" };
           body.style.backgroundColor = colors[data.ratingLabel] || "#3498db"; metricsPanel.textContent = `${data.ratingLabel} | Secure Time: ${data.timeSpentSeconds.toFixed(2)}s`;
         }
-        transitionTimer = setTimeout(() => { currentCardIndex = (data && typeof data.nextSelectedIndex === 'number') ? data.nextSelectedIndex : (currentCardIndex + 1) % flashcards.length; loadNextCard(); }, data.isWrong ? 2500 : 700);
+        
+        // VELOCITY FIX: Tightened response window transition to jump to the next card instantly on success
+        transitionTimer = setTimeout(() => { currentCardIndex = (data && typeof data.nextSelectedIndex === 'number') ? data.nextSelectedIndex : (currentCardIndex + 1) % flashcards.length; loadNextCard(); }, data.isWrong ? 1800 : 400);
       })
-      .catch(err => { console.warn("Cloud connection error. Running local backup sequence:", err); executeLocalGradingFallback(localDiff); });
+      .catch(err => { console.warn("Cloud connection latency fallback:", err); executeLocalGradingFallback(localDiff); });
     } else { executeLocalGradingFallback(localDiff); }
   }
+
   function executeLocalGradingFallback(localDiff) {
     const card = flashcards[currentCardIndex];
     if (localDiff.isWrong) {
@@ -328,8 +341,9 @@ velocity engine"></textarea>
       body.style.backgroundColor = "#2ecc71"; playSound("success"); metricsPanel.textContent = "Correct! (Local Backup)";
       if (sessionMetrics[card.front]) { sessionMetrics[card.front].correct++; sessionMetrics[card.front].correctTimes.push((entryFinishedTime - cardShownTime) / 1000); }
     }
-    transitionTimer = setTimeout(() => { currentCardIndex = (currentCardIndex + 1) % flashcards.length; loadNextCard(); }, localDiff.isWrong ? 2000 : 800);
+    transitionTimer = setTimeout(() => { currentCardIndex = (currentCardIndex + 1) % flashcards.length; loadNextCard(); }, localDiff.isWrong ? 1500 : 400);
   }
+
   document.getElementById("results-close-btn").addEventListener("click", () => { document.getElementById("results-modal").style.display = "none"; resetBtn.click(); });
 })();
 </script>
