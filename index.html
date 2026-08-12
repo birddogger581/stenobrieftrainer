@@ -290,8 +290,9 @@ bipartisan"></textarea>
     if ('speechSynthesis' in window) { window.speechSynthesis.cancel(); }
     body.style.backgroundColor = ""; practiceScreen.style.display = "none"; setupScreen.style.display = "flex"; customListInput.focus();
   });
-  function loadNextCard() {
+   function loadNextCard() {
     body.style.backgroundColor = ""; feedbackPanel.style.display = "none"; inputField.style.display = "block"; inputField.value = ""; inputField.focus();
+    metricsPanel.textContent = "--:--";
     if (flashcards.length === 0) return; const card = flashcards[currentCardIndex]; promptDisplay.textContent = card.front;
     if ('speechSynthesis' in window) {
       window.supabaseClient ? null : window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(card.front); utterance.lang = 'en-US'; window.speechSynthesis.speak(utterance);
@@ -299,52 +300,58 @@ bipartisan"></textarea>
     cardShownTime = performance.now(); entryFinishedTime = cardShownTime;
   }
 
-  // VELOCITY FIX: Instant interceptor fires the millisecond a complete brief outline lands
   inputField.addEventListener("input", () => {
-    entryFinishedTime = performance.now();
-    clearTimeout(typingTimer);
-    
-    // Instantly evaluates without waiting if the typed text matches the length or outline properties
+    entryFinishedTime = performance.now(); clearTimeout(typingTimer);
     const card = flashcards[currentCardIndex];
-    if (inputField.value.trim().length >= card.back.trim().length) {
-      evaluateAnswer();
-    } else {
-      // Short fallback timer only if you are still midway through a longer multi-stroke outline
-      typingTimer = setTimeout(() => { evaluateAnswer(); }, 180);
-    }
+    if (inputField.value.trim().length >= card.back.trim().length) { evaluateAnswer(); } 
+    else { typingTimer = setTimeout(() => { evaluateAnswer(); }, 180); }
   });
 
   function evaluateAnswer() {
-    const card = flashcards[currentCardIndex], typedText = inputField.value.trim(); inputField.style.display = "none"; feedbackPanel.style.display = "block";
-    metricsPanel.textContent = "Calculating Speed"
-    const localDiff = computeVisualDiff(typedText, card.back.trim()); comparisonOutput.innerHTML = localDiff.html; totalAnswersInSession++;
+    const card = flashcards[currentCardIndex], typedText = inputField.value.trim(); 
+    inputField.style.display = "none"; feedbackPanel.style.display = "block";
+    totalAnswersInSession++;
+
+    // 1. INSTANT LOCAL VISUAL DISPLAY ONLY (No Correctness Checked Here)
+    const localDiff = computeVisualDiff(typedText, card.back.trim()); 
+    comparisonOutput.innerHTML = localDiff.html; 
+    metricsPanel.textContent = "Calculating Velocity...";
+
+    // Jump to the next card immediately so you can keep typing without network lag
+    const previousIndex = currentCardIndex;
+    currentCardIndex = (currentCardIndex + 1) % flashcards.length;
     
+    transitionTimer = setTimeout(() => { loadNextCard(); }, 400);
+
+    // 2. SECURE BACKGROUND CALL
     if (!supabaseClient && window.supabase) { supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); }
-    
     if (supabaseClient && supabaseClient.functions) {
       supabaseClient.functions.invoke('evaluate-steno-stroke', {
-        body: { typedText: typedText, targetText: card.back, cardWeights: Array.isArray(cardWeights) ? cardWeights : [], cardShownTime: cardShownTime, entryFinishedTime: entryFinishedTime, currentIndex: currentCardIndex, totalAnswersInSession: totalAnswersInSession }
+        body: { typedText, targetText: card.back, cardWeights, cardShownTime, entryFinishedTime, currentIndex: previousIndex, totalAnswersInSession }
       })
-      .then(({ data, error }) => {
-        if (error) throw error; if (!data) throw new Error("Empty payload.");
-        if (data.updatedWeights) cardWeights = data.updatedWeights;
-
-        if (data.isWrong) {
-          body.style.backgroundColor = "#e74c3c"; playSound("fail"); metricsPanel.textContent = "Incorrect."; if (sessionMetrics[card.front]) sessionMetrics[card.front].wrong++;
-        } else {
-          playSound("success"); if (sessionMetrics[card.front]) { sessionMetrics[card.front].correct++; sessionMetrics[card.front].correctTimes.push(data.timeSpentSeconds); }
-          let colors = { "Easy!": "#2ecc71", "Good": "#3498db", "Hard": "#f1c40f", "Slow": "#c0392b" };
-          body.style.backgroundColor = colors[data.ratingLabel] || "#3498db"; metricsPanel.textContent = `${data.ratingLabel} | Secure Time: ${data.timeSpentSeconds.toFixed(2)}s`;
-        }
+      .then(({ data }) => {
+        if (data && data.updatedWeights) cardWeights = data.updatedWeights;
         
-        // VELOCITY FIX: Tightened response window transition to jump to the next card instantly on success
-        transitionTimer = setTimeout(() => { currentCardIndex = (data && typeof data.nextSelectedIndex === 'number') ? data.nextSelectedIndex : (currentCardIndex + 1) % flashcards.length; loadNextCard(); }, data.isWrong ? 1800 : 400);
+        // The background color updates quietly whenever the server finishes processing
+        let colors = { "Easy!": "#2ecc71", "Good": "#3498db", "Hard": "#f1c40f", "Slow": "#c0392b", "Incorrect": "#e74c3c" };
+        if (data && data.ratingLabel) {
+          body.style.backgroundColor = colors[data.ratingLabel] || "#3498db";
+          metricsPanel.textContent = data.ratingLabel === "Incorrect" ? "Incorrect." : `${data.ratingLabel} | Secure Time: ${data.timeSpentSeconds.toFixed(2)}s`;
+          
+          // Log correct/wrong counters quietly behind the scenes based on server response
+          if (sessionMetrics[card.front]) {
+            if (data.isWrong) {
+              sessionMetrics[card.front].wrong++;
+            } else {
+              sessionMetrics[card.front].correct++;
+              sessionMetrics[card.front].correctTimes.push(data.timeSpentSeconds);
+            }
+          }
+        }
       })
-      .catch(err => { console.warn("Cloud connection latency fallback:", err); executeLocalGradingFallback(localDiff); });
-    } else { executeLocalGradingFallback(localDiff); }
+      .catch(err => console.warn("Background cloud sync processing...", err));
+    }
   }
-
-  document.getElementById("results-close-btn").addEventListener("click", () => { document.getElementById("results-modal").style.display = "none"; resetBtn.click(); });
 })();
 </script>
 </body>
