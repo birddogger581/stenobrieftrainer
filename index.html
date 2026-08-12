@@ -312,46 +312,51 @@ bipartisan"></textarea>
     inputField.style.display = "none"; feedbackPanel.style.display = "block";
     totalAnswersInSession++;
 
-    // 1. INSTANT LOCAL VISUAL DISPLAY ONLY (No Correctness Checked Here)
     const localDiff = computeVisualDiff(typedText, card.back.trim()); 
     comparisonOutput.innerHTML = localDiff.html; 
     metricsPanel.textContent = "Calculating Velocity...";
 
-    // Jump to the next card immediately so you can keep typing without network lag
-    const previousIndex = currentCardIndex;
-    currentCardIndex = (currentCardIndex + 1) % flashcards.length;
-    
-    transitionTimer = setTimeout(() => { loadNextCard(); }, 400);
-
-    // 2. SECURE BACKGROUND CALL
     if (!supabaseClient && window.supabase) { supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); }
+    
+   
     if (supabaseClient && supabaseClient.functions) {
       supabaseClient.functions.invoke('evaluate-steno-stroke', {
-        body: { typedText, targetText: card.back, cardWeights, cardShownTime, entryFinishedTime, currentIndex: previousIndex, totalAnswersInSession }
+        body: { typedText, targetText: card.back, cardWeights, cardShownTime, entryFinishedTime, currentIndex: currentCardIndex, totalAnswersInSession }
       })
-      .then(({ data }) => {
-        if (data && data.updatedWeights) cardWeights = data.updatedWeights;
+      .then(({ data, error }) => {
+        if (error) throw error; if (!data) throw new Error("Empty payload.");
+        if (data.updatedWeights) cardWeights = data.updatedWeights;
         
-        // The background color updates quietly whenever the server finishes processing
+        // RESTORED SOUNDS & COLORS: Fires instantly the moment the cloud registers the data matrix
         let colors = { "Easy!": "#2ecc71", "Good": "#3498db", "Hard": "#f1c40f", "Slow": "#c0392b", "Incorrect": "#e74c3c" };
-        if (data && data.ratingLabel) {
+        
+        if (data.isWrong) {
+          body.style.backgroundColor = colors["Incorrect"]; playSound("fail"); metricsPanel.textContent = "Incorrect.";
+          if (sessionMetrics[card.front]) sessionMetrics[card.front].wrong++;
+        } else {
+          playSound("success");
           body.style.backgroundColor = colors[data.ratingLabel] || "#3498db";
-          metricsPanel.textContent = data.ratingLabel === "Incorrect" ? "Incorrect." : `${data.ratingLabel} | Secure Time: ${data.timeSpentSeconds.toFixed(2)}s`;
-          
-          // Log correct/wrong counters quietly behind the scenes based on server response
+          metricsPanel.textContent = `${data.ratingLabel} | Secure Time: ${data.timeSpentSeconds.toFixed(2)}s`;
           if (sessionMetrics[card.front]) {
-            if (data.isWrong) {
-              sessionMetrics[card.front].wrong++;
-            } else {
-              sessionMetrics[card.front].correct++;
-              sessionMetrics[card.front].correctTimes.push(data.timeSpentSeconds);
-            }
+            sessionMetrics[card.front].correct++;
+            sessionMetrics[card.front].correctTimes.push(data.timeSpentSeconds);
           }
         }
+
+        transitionTimer = setTimeout(() => { 
+          currentCardIndex = (data && typeof data.nextSelectedIndex === 'number') ? data.nextSelectedIndex : (currentCardIndex + 1) % flashcards.length; 
+          loadNextCard(); 
+        }, data.isWrong ? 1800 : 450);
       })
-      .catch(err => console.warn("Background cloud sync processing...", err));
+      .catch(err => { 
+        console.warn("Cloud connection error, dropping to offline fallback routine:", err); 
+        executeOfflineFallbackRoutine(localDiff); 
+      });
+    } else { 
+      executeOfflineFallbackRoutine(localDiff); 
     }
   }
+  document.getElementById("results-close-btn").addEventListener("click", () => { document.getElementById("results-modal").style.display = "none"; resetBtn.click(); });
 })();
 </script>
 </body>
