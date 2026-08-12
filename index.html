@@ -333,17 +333,6 @@ bipartisan"></textarea>
     } else { executeLocalGradingFallback(localDiff); }
   }
 
-  function executeLocalGradingFallback(localDiff) {
-    const card = flashcards[currentCardIndex];
-    if (localDiff.isWrong) {
-      body.style.backgroundColor = "#e74c3c"; playSound("fail"); metricsPanel.textContent = "Incorrect."; if (sessionMetrics[card.front]) sessionMetrics[card.front].wrong++;
-    } else {
-      body.style.backgroundColor = "#2ecc71"; playSound("success"); metricsPanel.textContent = "Correct! (Local Backup)";
-      if (sessionMetrics[card.front]) { sessionMetrics[card.front].correct++; sessionMetrics[card.front].correctTimes.push((entryFinishedTime - cardShownTime) / 1000); }
-    }
-    transitionTimer = setTimeout(() => { currentCardIndex = (currentCardIndex + 1) % flashcards.length; loadNextCard(); }, localDiff.isWrong ? 1500 : 400);
-  }
-
   document.getElementById("results-close-btn").addEventListener("click", () => { document.getElementById("results-modal").style.display = "none"; resetBtn.click(); });
 })();
 </script>
